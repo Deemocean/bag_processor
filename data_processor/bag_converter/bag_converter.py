@@ -83,6 +83,46 @@ class BagLoader:
             return f"{topic_nickname}_{bag_nickname}"
         return topic_nickname
     
+    def _get_topic_message_counts(self, bag_path: str, topics: List[str]) -> Optional[int]:
+        """Get total message count for specific topics using ros2 bag info."""
+        try:
+            import subprocess
+            result = subprocess.run(
+                ['ros2', 'bag', 'info', bag_path],
+                capture_output=True, text=True, timeout=30
+            )
+            
+            if result.returncode != 0:
+                return None
+            
+            total_count = 0
+            for line in result.stdout.split('\n'):
+                if 'Topic:' in line and 'Count:' in line:
+                    # Parse line like: "Topic: /state/odom | Type: nav_msgs/msg/Odometry | Count: 388190"
+                    parts = line.split('|')
+                    if len(parts) >= 3:
+                        topic_part = parts[0].strip()
+                        count_part = parts[2].strip()
+                        
+                        # Extract topic name
+                        if 'Topic:' in topic_part:
+                            topic_name = topic_part.split('Topic:')[1].strip()
+                            
+                            # Extract count
+                            if 'Count:' in count_part:
+                                count_str = count_part.split('Count:')[1].strip()
+                                if topic_name in topics:
+                                    try:
+                                        count = int(count_str)
+                                        total_count += count
+                                    except ValueError:
+                                        continue
+            
+            return total_count if total_count > 0 else None
+            
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+            return None
+    
     def _init_reader_for_bag(self, config: BagConfig) -> Dict:
         """Initialize reader for a single bag configuration."""
         opts = StorageOptions(uri=config.bag_path, storage_id="mcap")
@@ -100,6 +140,9 @@ class BagLoader:
         if missing:
             raise ValueError(f"Topics not in bag {config.bag_path}: {missing}")
         
+        # Get accurate message counts by using rosbag2 info command
+        total_messages = self._get_topic_message_counts(config.bag_path, topics_to_read)
+        
         # Apply topic filter for efficiency
         if topics_to_read:
             filt = StorageFilter(topics=topics_to_read)
@@ -116,7 +159,8 @@ class BagLoader:
             'reader': reader,
             'type_map': type_map,
             'msg_factories': msg_factories,
-            'topics_to_read': topics_to_read
+            'topics_to_read': topics_to_read,
+            'total_messages': total_messages
         }
 
 
@@ -159,7 +203,8 @@ class BagLoader:
             # Read messages from this bag with enhanced progress bar
             bag_name = os.path.basename(config.bag_path)
             desc = f"[{bag_idx}/{len(self.bag_readers)}] {bag_name}"
-            with tqdm(desc=desc, unit=" msg", ncols=100) as pbar:
+            total_messages = reader_info['total_messages']
+            with tqdm(desc=desc, total=total_messages, unit="msg", dynamic_ncols=True) as pbar:
                 while reader.has_next():
                     name, data, _ = reader.read_next()
                     if name not in bag_buffers:
