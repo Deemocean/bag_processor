@@ -3,9 +3,9 @@
 import os
 import json
 import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Union, Optional
 
-from data_processor.bag_converter.bag_converter import BagLoader
+from data_processor.bag_converter.bag_converter import BagLoader, BagConfig
 
 class Database:
     def __init__(self, tables: Dict[str, pd.DataFrame]):
@@ -31,23 +31,60 @@ class Database:
 class DataLoader:
     def __init__(
         self,
-        bag_path: str,
-        topics: List[str],
-        output_dir: str,
+        bag_configs: Union[BagConfig, List[BagConfig], str] = None,
+        topics: Optional[List[str]] = None,
+        output_dir: str = None,
+        # Backward compatibility parameters
+        bag_path: Optional[str] = None
     ):
         """
-        bag_path   : path to .mcap
-        topics     : list of topic names
-        output_dir : where CSVs + manifest live
+        New API:
+            bag_configs : BagConfig or list of BagConfig objects
+            output_dir  : where CSVs + manifest live
+        
+        Backward compatibility:
+            bag_path    : path to .mcap (deprecated, use bag_configs)
+            topics      : list of topic names (deprecated)
         """
-        self.bag_path     = bag_path
-        self.topics       = topics
-        self.output_dir   = output_dir
+        # Handle backward compatibility
+        if bag_path is not None and topics is not None:
+            # Old API usage
+            topic_map = {topic: topic for topic in topics}
+            self.bag_configs = [BagConfig(bag_path=bag_path, topics=topic_map)]
+            self.topics = topics  # Keep for manifest compatibility
+        elif isinstance(bag_configs, str):
+            # Mixed usage - bag_configs is actually bag_path
+            if topics is None:
+                raise ValueError("When providing bag_path as string, topics must be specified")
+            topic_map = {topic: topic for topic in topics}
+            self.bag_configs = [BagConfig(bag_path=bag_configs, topics=topic_map)]
+            self.topics = topics
+        else:
+            # New API usage
+            if isinstance(bag_configs, BagConfig):
+                self.bag_configs = [bag_configs]
+            else:
+                self.bag_configs = bag_configs or []
+            
+            # Extract all nicknames for manifest compatibility
+            self.topics = []
+            for config in self.bag_configs:
+                for topic_name, nickname in config.topics.items():
+                    final_nickname = self._get_final_nickname(nickname, config.nickname)
+                    self.topics.append(final_nickname)
+        
+        self.output_dir = output_dir
         os.makedirs(self.output_dir, exist_ok=True)
-        self.manifest_f   = os.path.join(self.output_dir, "manifest.json")
+        self.manifest_f = os.path.join(self.output_dir, "manifest.json")
+    
+    def _get_final_nickname(self, topic_nickname: str, bag_nickname: Optional[str]) -> str:
+        """Generate final topic nickname with optional bag suffix."""
+        if bag_nickname:
+            return f"{topic_nickname}_{bag_nickname}"
+        return topic_nickname
 
     def _generate_manifest(self):
-        BagLoader(self.bag_path, self.topics, self.output_dir).run_all()
+        BagLoader(self.bag_configs, self.output_dir).run_all()
 
     def _load_manifest(self) -> Dict[str, str]:
         with open(self.manifest_f) as f:
