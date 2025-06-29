@@ -15,9 +15,9 @@ def navsatfix_handler(msg) -> dict:
     return {"header_t": header_time,
             "lat": msg.latitude,
             "lon": msg.longitude,
-            "alt": msg.altitude
-            #"covariance": np.array(msg.position_covariance).reshape(3, 3).tolist(),
-            #"status": msg.status.status
+            "alt": msg.altitude,
+            "covariance": np.array(msg.position_covariance).reshape(3, 3).tolist(),
+            "status": msg.status.status
             }
 
 @register_handler("nav_msgs/msg/Odometry")
@@ -26,7 +26,11 @@ def odom_handler(msg) -> dict:
     return {"header_t": header_time,
             "x": msg.pose.pose.position.x,
             "y": msg.pose.pose.position.y,
-            "z": msg.pose.pose.position.z
+            "z": msg.pose.pose.position.z,
+            "qx": msg.pose.pose.orientation.x,
+            "qy": msg.pose.pose.orientation.y,
+            "qz": msg.pose.pose.orientation.z,
+            "qw": msg.pose.pose.orientation.w
             }
 
 @register_handler("gps_msgs/msg/GPSFix")
@@ -47,3 +51,9 @@ def gpsfix_handler(msg) -> dict:
             "lat": msg.lat,
             "lon": msg.lon,
             "alt": msg.hgt}
+
+@register_handler("teleop_msgs/msg/Float32Stamped")
+def float32_stamped_handler(msg) -> dict:
+    header_time = msg.header.stamp.sec + msg.header.stamp.nanosec * 1e-9
+    return {"header_t": header_time,
+            "data": msg.data}

@@ -73,3 +73,8 @@ The helpers module provides efficient time synchronization between DataFrames:
 2. CSV files → DataLoader → Database object with topic DataFrames  
 3. Database → helpers sync functions → time-aligned analysis
 4. Synchronized data → visualization scripts → plots and analysis
+
+## Development Notes
+
+- **Git Workflow**:
+  - Update readme everytime i ask to git commit
