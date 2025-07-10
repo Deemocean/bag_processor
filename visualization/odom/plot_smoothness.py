@@ -12,7 +12,7 @@ sys.path.insert(
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import UnivariateSpline
+#from scipy.interpolate import UnivariateSpline
 
 from data_processor.data_loader.data_loader import DataLoader
 from data_processor.bag_converter.bag_converter import BagConfig
@@ -88,20 +88,9 @@ def main():
     
     # Configure bags with odometry data using same pattern as plot_alt.py
     bag_configs = [
-        # BagConfig(
-        #     bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_2_avg/2025-06-29_14-55-22/2025-06-29_14-55-22_0.mcap",
-        #     topics={
-        #         "/state/odom_raw": "odom_raw",
-        #         "/state/odom": "odom",
-        #         "/sensors/manager/gps0": "gps_a",
-        #         "/sensors/manager/gps1": "gps_b",
-        #         "/localization/debug/gps_dist": "gps_innovation"
-        #     },
-        #     nickname="opt_s_gdop2_avg"
-        # ),
 
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_05/2025-06-29_15-09-19/2025-06-29_15-09-19_0.mcap",
+            bag_path="/media/dm0/Matrix/2025-07-04_12-01-16_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -109,10 +98,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="opt_s_gdop05_avg"
+            nickname="7/4 run1 chang2"
         ),
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/stable_new/2025-06-29_15-01-46/2025-06-29_15-01-46_0.mcap",
+            bag_path="/media/dm0/Matrix/bags/ca2/2025-07-03/2025-07-03-14-30-13/2025-07-03-14-30-13.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -120,9 +109,11 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="stable"
-        )
+            nickname="7/4 run1"
+        ),
+
     ]
+
     
     # Load data
     loader = DataLoader(bag_configs=bag_configs, output_dir=csv_dir)
@@ -131,7 +122,7 @@ def main():
 
     # Get nicknames from bag configs
     nicknames = [config.nickname for config in bag_configs]
-    duration = 300  # 5 minutes duration
+    duration = 3000  # 5 minutes duration
     
     # Process data for each bag
     run_data = {}

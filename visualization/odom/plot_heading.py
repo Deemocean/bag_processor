@@ -81,23 +81,19 @@ def main():
     # Configure two bags with odometry data
     bag_configs = [
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_05/2025-06-29_15-09-19/2025-06-29_15-09-19_0.mcap",
+            bag_path="/media/dm0/Matrix/recordings/2025-07-02_14-25-37_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
+                "/sensors/manager/gps0": "gps_a",
+                "/sensors/manager/gps1": "gps_b",
+                "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="opt_s_gdop05_avg"
+            nickname="7/1 run2 - opt"
         ),
 
-        BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/stable_new/2025-06-29_15-01-46/2025-06-29_15-01-46_0.mcap",
-            topics={
-                "/state/odom_raw": "odom_raw",
-                "/state/odom": "odom",
-            },
-            nickname="stable"
-        )
     ]
+
     
     # Load data
     loader = DataLoader(bag_configs=bag_configs, output_dir=csv_dir)

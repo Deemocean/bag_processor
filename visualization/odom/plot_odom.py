@@ -10,11 +10,12 @@ sys.path.insert(
     )
 )
 
-from mpl_toolkits.mplot3d import Axes3D  # registers the 3D projection
+import argparse
 import numpy as np
 from pymap3d import geodetic2enu
 from matplotlib.colors import LogNorm
 import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D  # registers the 3D projection - not needed
 
 from data_processor.data_loader.data_loader import DataLoader
 from data_processor.bag_converter.bag_converter import BagConfig
@@ -118,13 +119,22 @@ def get_topics_by_nickname(db, nickname):
 
 
 def main():
+    parser = argparse.ArgumentParser(description='Plot odometry data with optional covariance scaling')
+    parser.add_argument('--scale-by-covariance', action='store_true', 
+                        help='Scale odometry points by covariance trace')
+    parser.add_argument('--scale-factor', type=float, default=10.0,
+                        help='Scaling factor for covariance visualization (default: 10.0)')
+    args = parser.parse_args()
+    
     csv_dir = "/tmp/CSVs"
     origin = [36.583880, -121.752955, 250.00]
     
     # Configure two bags with odometry data
+  
+
     bag_configs = [
         # BagConfig(
-        #     bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_2_avg/2025-06-29_14-55-22/2025-06-29_14-55-22_0.mcap",
+        #     bag_path="/media/dm0/Matrix/bags/ca2/2025-07-07/2025-07-07-11-30-00/2025-07-07-11-30-00.mcap",
         #     topics={
         #         "/state/odom_raw": "odom_raw",
         #         "/state/odom": "odom",
@@ -132,11 +142,11 @@ def main():
         #         "/sensors/manager/gps1": "gps_b",
         #         "/localization/debug/gps_dist": "gps_innovation"
         #     },
-        #     nickname="opt_s_gdop2_avg"
+        #     nickname="7/7 run1"
         # ),
 
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_05/2025-06-29_15-09-19/2025-06-29_15-09-19_0.mcap",
+            bag_path="/media/dm0/Matrix/recordings/74sqrt/2025-07-07_13-50-54/2025-07-07_13-50-54_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -144,11 +154,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="opt_s_gdop05_avg"
+            nickname="7/7 run1 sqrtstd"
         ),
-
-        BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/stable_new/2025-06-29_15-01-46/2025-06-29_15-01-46_0.mcap",
+            BagConfig(
+            bag_path="/media/dm0/Matrix/recordings/nozupdate/2025-07-07_15-21-50/2025-07-07_15-21-50_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -156,10 +165,11 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="stable"
-        )
-
+            nickname="7/7 run1 sqrtstd no z"
+        ),
     ]
+
+        
     
     # Load data from both bags
     loader = DataLoader(bag_configs=bag_configs, output_dir=csv_dir)
@@ -168,7 +178,7 @@ def main():
 
     # Get nicknames from bag configs
     nicknames = [config.nickname for config in bag_configs]
-    duration = 300  # 5 minutes duration
+    duration = 5000  
     
     # Process data for each bag
     run_data = {}
@@ -267,16 +277,60 @@ def main():
         # Plot odometry
         if "odom" in run_data[nickname]:
             odom = run_data[nickname]["odom"]
-            ax_traj.plot(odom["x"], odom["y"], label=f"Odom {nickname}", 
-                        linestyle='-', alpha=0.7, linewidth=2, color=color)
+            
+            # Check if covariance data exists and scaling is enabled
+            if args.scale_by_covariance and "pose_covariance" in odom.columns:
+                # Extract position covariance (3x3 upper-left block of 6x6 matrix)
+                cov_traces = []
+                for cov_str in odom["pose_covariance"]:
+                    cov_6x6 = np.array(eval(cov_str))  # Convert string to 6x6 array
+                    cov_3x3 = cov_6x6[:3, :3]  # Extract position covariance
+                    cov_traces.append(np.trace(cov_3x3))
+                
+                # Scale point sizes by covariance trace
+                sizes = np.array(cov_traces) * args.scale_factor
+                sizes = np.clip(sizes, 1, 100)  # Limit size range
+                
+                # Plot as scatter with varying sizes
+                ax_traj.scatter(odom["x"], odom["y"], s=sizes, c=color, 
+                              label=f"Odom {nickname}", alpha=0.7)
+            else:
+                # Plot as line (default behavior)
+                ax_traj.plot(odom["x"], odom["y"], label=f"Odom {nickname}", 
+                            linestyle='-', alpha=0.7, linewidth=2, color=color)
+        
+        # Plot raw odometry
+        if "odom_raw" in run_data[nickname]:
+            odom_raw = run_data[nickname]["odom_raw"]
+            
+            # Check if covariance data exists and scaling is enabled
+            if args.scale_by_covariance and "pose_covariance" in odom_raw.columns:
+                # Extract position covariance (3x3 upper-left block of 6x6 matrix)
+                cov_traces = []
+                for cov_str in odom_raw["pose_covariance"]:
+                    cov_6x6 = np.array(eval(cov_str))  # Convert string to 6x6 array
+                    cov_3x3 = cov_6x6[:3, :3]  # Extract position covariance
+                    cov_traces.append(np.trace(cov_3x3))
+                
+                # Scale point sizes by covariance trace
+                sizes = np.array(cov_traces) * args.scale_factor
+                sizes = np.clip(sizes, 1, 100)  # Limit size range
+                
+                # Plot as scatter with varying sizes
+                ax_traj.scatter(odom_raw["x"], odom_raw["y"], s=sizes, c=color, 
+                              label=f"Odom Raw {nickname}", alpha=0.5, marker='x')
+            else:
+                # Plot as line (default behavior) with dashed style
+                ax_traj.plot(odom_raw["x"], odom_raw["y"], label=f"Odom Raw {nickname}", 
+                            linestyle='--', alpha=0.5, linewidth=1.5, color=color)
         
         # Plot GPS points
         if "gps_a_enu" in run_data[nickname]:
             x, y, z = run_data[nickname]["gps_a_enu"]
-            ax_traj.scatter(x, y, c=color, s=1, label=f"GPS A {nickname}", alpha=0.5)
+            ax_traj.scatter(x, y, c=color, s=5, label=f"GPS A {nickname}", alpha=0.5)
         if "gps_b_enu" in run_data[nickname]:
             x, y, z = run_data[nickname]["gps_b_enu"]
-            ax_traj.scatter(x, y, c=color, s=1, label=f"GPS B {nickname}", alpha=0.3, marker='^')
+            ax_traj.scatter(x, y, c=color, s=5, label=f"GPS B {nickname}", alpha=0.5, marker='^')
     
     ax_traj.axis("equal")
     ax_traj.set_xlabel("X (m)")
@@ -310,9 +364,22 @@ def main():
             if "odom" in run_data[nickname]:
                 odom = run_data[nickname]["odom"]
                 time_to_xy_data[nickname] = {
-                    'time': odom["header_t"].values,
-                    'x': odom["x"].values,
-                    'y': odom["y"].values
+                    'odom': {
+                        'time': odom["header_t"].values,
+                        'x': odom["x"].values,
+                        'y': odom["y"].values
+                    }
+                }
+                
+            # Store time-indexed raw odometry data
+            if "odom_raw" in run_data[nickname]:
+                odom_raw = run_data[nickname]["odom_raw"]
+                if nickname not in time_to_xy_data:
+                    time_to_xy_data[nickname] = {}
+                time_to_xy_data[nickname]['odom_raw'] = {
+                    'time': odom_raw["header_t"].values,
+                    'x': odom_raw["x"].values,
+                    'y': odom_raw["y"].values
                 }
     
     ax_trace_a.set_xlabel("Time (s)")
@@ -385,18 +452,77 @@ def main():
                 
             color = colors[i % len(colors)]
             
-            # Filter odometry data by time range
-            time_data = time_to_xy_data[nickname]['time']
-            x_data = time_to_xy_data[nickname]['x']
-            y_data = time_to_xy_data[nickname]['y']
+            # Filter and plot odometry data by time range
+            if 'odom' in time_to_xy_data[nickname]:
+                time_data = time_to_xy_data[nickname]['odom']['time']
+                x_data = time_to_xy_data[nickname]['odom']['x']
+                y_data = time_to_xy_data[nickname]['odom']['y']
+                
+                # Find indices within time range
+                mask = (time_data >= time_min) & (time_data <= time_max)
+                
+                # Plot filtered trajectory
+                if args.scale_by_covariance and "odom" in run_data[nickname] and "pose_covariance" in run_data[nickname]["odom"].columns:
+                    # Get covariance data for time-filtered points
+                    odom_df = run_data[nickname]["odom"]
+                    odom_time = odom_df["header_t"].values
+                    time_mask = (odom_time >= time_min) & (odom_time <= time_max)
+                    
+                    # Extract covariance traces for filtered points
+                    cov_traces = []
+                    for cov_str in odom_df[time_mask]["pose_covariance"]:
+                        cov_6x6 = np.array(eval(cov_str))
+                        cov_3x3 = cov_6x6[:3, :3]
+                        cov_traces.append(np.trace(cov_3x3))
+                    
+                    # Scale point sizes by covariance trace
+                    sizes = np.array(cov_traces) * args.scale_factor
+                    sizes = np.clip(sizes, 1, 100)
+                    
+                    # Plot as scatter with varying sizes
+                    ax_traj.scatter(x_data[mask], y_data[mask], s=sizes, c=color,
+                                  label=f"Odom {nickname}", alpha=0.7)
+                else:
+                    # Plot as line (default behavior)
+                    ax_traj.plot(x_data[mask], y_data[mask], 
+                                label=f"Odom {nickname}", 
+                                linestyle='-', alpha=0.7, linewidth=2, color=color)
             
-            # Find indices within time range
-            mask = (time_data >= time_min) & (time_data <= time_max)
-            
-            # Plot filtered trajectory
-            ax_traj.plot(x_data[mask], y_data[mask], 
-                        label=f"Odom {nickname}", 
-                        linestyle='-', alpha=0.7, linewidth=2, color=color)
+            # Filter and plot raw odometry data by time range
+            if 'odom_raw' in time_to_xy_data[nickname]:
+                time_data = time_to_xy_data[nickname]['odom_raw']['time']
+                x_data = time_to_xy_data[nickname]['odom_raw']['x']
+                y_data = time_to_xy_data[nickname]['odom_raw']['y']
+                
+                # Find indices within time range
+                mask = (time_data >= time_min) & (time_data <= time_max)
+                
+                # Plot filtered raw trajectory
+                if args.scale_by_covariance and "odom_raw" in run_data[nickname] and "pose_covariance" in run_data[nickname]["odom_raw"].columns:
+                    # Get covariance data for time-filtered points
+                    odom_raw_df = run_data[nickname]["odom_raw"]
+                    odom_raw_time = odom_raw_df["header_t"].values
+                    time_mask = (odom_raw_time >= time_min) & (odom_raw_time <= time_max)
+                    
+                    # Extract covariance traces for filtered points
+                    cov_traces = []
+                    for cov_str in odom_raw_df[time_mask]["pose_covariance"]:
+                        cov_6x6 = np.array(eval(cov_str))
+                        cov_3x3 = cov_6x6[:3, :3]
+                        cov_traces.append(np.trace(cov_3x3))
+                    
+                    # Scale point sizes by covariance trace
+                    sizes = np.array(cov_traces) * args.scale_factor
+                    sizes = np.clip(sizes, 1, 100)
+                    
+                    # Plot as scatter with varying sizes
+                    ax_traj.scatter(x_data[mask], y_data[mask], s=sizes, c=color,
+                                  label=f"Odom Raw {nickname}", alpha=0.5, marker='x')
+                else:
+                    # Plot as line (default behavior) with dashed style
+                    ax_traj.plot(x_data[mask], y_data[mask], 
+                                label=f"Odom Raw {nickname}", 
+                                linestyle='--', alpha=0.5, linewidth=1.5, color=color)
             
             # Plot filtered GPS points
             if "gps_a_enu" in run_data[nickname] and "gps_a" in run_data[nickname]:

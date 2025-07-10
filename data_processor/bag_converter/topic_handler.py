@@ -30,7 +30,8 @@ def odom_handler(msg) -> dict:
             "qx": msg.pose.pose.orientation.x,
             "qy": msg.pose.pose.orientation.y,
             "qz": msg.pose.pose.orientation.z,
-            "qw": msg.pose.pose.orientation.w
+            "qw": msg.pose.pose.orientation.w,
+            "pose_covariance": np.array(msg.pose.covariance).reshape(6, 6).tolist()
             }
 
 @register_handler("gps_msgs/msg/GPSFix")

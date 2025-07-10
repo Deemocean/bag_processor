@@ -32,10 +32,10 @@ def main():
     csv_dir = "/tmp/CSVs"
     origin = [36.583880, -121.752955, 250.00]  # lat, lon, alt
     
-        # Configure two bags with odometry data
+    # Configure two bags with odometry data
     bag_configs = [
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/opt_s_gdop_05/2025-06-29_15-09-19/2025-06-29_15-09-19_0.mcap",
+            bag_path="/media/dm0/Matrix/bags/ca2/2025-07-07/2025-07-07-11-30-00/2025-07-07-11-30-00.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -43,11 +43,11 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="opt_s_gdop05_avg"
+            nickname="7/7 run1"
         ),
 
         BagConfig(
-            bag_path="/media/dm0/Matrix1/recordings/stable_new/2025-06-29_15-01-46/2025-06-29_15-01-46_0.mcap",
+            bag_path="/media/dm0/Matrix/recordings/74sqrt/2025-07-07_13-50-54/2025-07-07_13-50-54_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -55,10 +55,21 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="stable"
-        )
-
+            nickname="7/7 run1 sqrtstd"
+        ),
+            BagConfig(
+            bag_path="/media/dm0/Matrix/recordings/nozupdate/2025-07-07_15-21-50/2025-07-07_15-21-50_0.mcap",
+            topics={
+                "/state/odom_raw": "odom_raw",
+                "/state/odom": "odom",
+                "/sensors/manager/gps0": "gps_a",
+                "/sensors/manager/gps1": "gps_b",
+                "/localization/debug/gps_dist": "gps_innovation"
+            },
+            nickname="7/7 run1 sqrtstd no z"
+        ),
     ]
+    
     
     # Load data
     loader = DataLoader(bag_configs=bag_configs, output_dir=csv_dir)
@@ -67,7 +78,19 @@ def main():
 
     # Get nicknames from bag configs
     nicknames = [config.nickname for config in bag_configs]
-    duration = 300  # 5 minutes duration
+    duration = 1800  # 5 minutes duration
+    
+    # Find the earliest start time across all bags
+    global_start_time = float('inf')
+    for nickname in nicknames:
+        topics = get_topics_by_nickname(db, nickname)
+        if topics and "odom" in topics:
+            odom_topic = topics["odom"]
+            if odom_topic in db.topics():
+                start_time = db[odom_topic]["header_t"].min()
+                global_start_time = min(global_start_time, start_time)
+    
+    print(f"Global start time (earliest): {global_start_time}")
     
     # Process data for each bag
     run_data = {}
@@ -132,8 +155,8 @@ def main():
                     break
             
             if alt_col and 'header_t' in odom_df.columns and len(odom_df) > 0:
-                # Convert timestamp to seconds from start
-                time_sec = (odom_df['header_t'] - odom_df['header_t'].iloc[0]) / 1e9
+                # Convert timestamp to seconds from global start time
+                time_sec = (odom_df['header_t'] - global_start_time) / 1e9
                 altitude = odom_df[alt_col]
                 
                 # Plot altitude
@@ -162,7 +185,7 @@ def main():
                     break
             
             if alt_col and 'header_t' in gps_df.columns and len(gps_df) > 0:
-                time_sec = (gps_df['header_t'] - gps_df['header_t'].iloc[0]) / 1e9
+                time_sec = (gps_df['header_t'] - global_start_time) / 1e9
                 altitude_raw = gps_df[alt_col]
                 
                 # Convert GPS altitude to relative altitude (subtract origin altitude)
@@ -202,7 +225,7 @@ def main():
                     break
             
             if alt_col and 'header_t' in gps_df.columns and len(gps_df) > 0:
-                time_sec = (gps_df['header_t'] - gps_df['header_t'].iloc[0]) / 1e9
+                time_sec = (gps_df['header_t'] - global_start_time) / 1e9
                 altitude_raw = gps_df[alt_col]
                 
                 # Convert GPS altitude to relative altitude (subtract origin altitude)

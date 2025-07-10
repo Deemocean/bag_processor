@@ -7,7 +7,7 @@ import numpy as np
 from bisect import bisect_left
 from typing import List, Optional
 
-import open3d as o3d
+# import open3d as o3d
 from typing import Tuple
 
 def get_traj_file_df(
