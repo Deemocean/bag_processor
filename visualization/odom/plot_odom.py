@@ -26,24 +26,29 @@ class Bubble:
     # hard-coded 
     _cfg = {
         'bubble0': {
-            'bubble_center': [-340.0, 248.0],
+            'bubble_center': [-361.0, 240.0],
             'bubble_radius':  40.0,
-            'bubble_max_cov':  8.0
+            'bubble_max_cov':  2.0
         },
         'bubble1': {
-            'bubble_center': [-198.0,  94.0],
-            'bubble_radius':  40.0,
-            'bubble_max_cov':  8.0
+            'bubble_center': [-156.0,  87.5],
+            'bubble_radius':  50.0,
+            'bubble_max_cov':  2.0
         },
         'bubble2': {
             'bubble_center': [-105.0, -290.0],
             'bubble_radius':  40.0,
-            'bubble_max_cov':  8.0
+            'bubble_max_cov':  2.0
         },
         'bubble3': {
-            'bubble_center': [ 181.0, -407.0],
+            'bubble_center': [ 199.0, -404.0],
             'bubble_radius':  40.0,
-            'bubble_max_cov':  8.0
+            'bubble_max_cov':  5.0
+        },
+        'bubble4': {
+            'bubble_center': [ 300.0, 251.0],
+            'bubble_radius':  40.0,
+            'bubble_max_cov':  2.0
         },
     }
 
@@ -70,7 +75,7 @@ class Bubble:
     
     def get_cov_trace(self, x, y):
         cov = self.get_cov(x, y)
-        return np.trace(cov)
+        return cov[0, 0] + cov[1, 1]  # Only x and y components
 
 
 def load_gps_covariance(gps_df, nickname=None, gps_enu=None):
@@ -129,12 +134,9 @@ def main():
     csv_dir = "/tmp/CSVs"
     origin = [36.583880, -121.752955, 250.00]
     
-    # Configure two bags with odometry data
-  
-
     bag_configs = [
         # BagConfig(
-        #     bag_path="/media/dm0/Matrix/bags/ca2/2025-07-07/2025-07-07-11-30-00/2025-07-07-11-30-00.mcap",
+        #     bag_path="/media/dm0/Matrix1/bags/ca2/2025-07-07/2025-07-07-16-29-11/2025-07-07-16-29-11.mcap",
         #     topics={
         #         "/state/odom_raw": "odom_raw",
         #         "/state/odom": "odom",
@@ -142,11 +144,21 @@ def main():
         #         "/sensors/manager/gps1": "gps_b",
         #         "/localization/debug/gps_dist": "gps_innovation"
         #     },
-        #     nickname="7/7 run1"
+        #     nickname="7/7 run3"
         # ),
-
+        # BagConfig(
+        #     bag_path="/media/dm0/Matrix1/bags/ca2/2025-07-07/2025-07-07-11-30-00/2025-07-07-11-30-00.mcap",
+        #     topics={
+        #         "/state/odom_raw": "odom_raw",
+        #         "/state/odom": "odom",
+        #         "/sensors/manager/gps0": "gps_a",
+        #         "/sensors/manager/gps1": "gps_b",
+        #         "/localization/debug/gps_dist": "gps_innovation"
+        #     },
+        #     nickname="7/7 run2"
+        # ),
         BagConfig(
-            bag_path="/media/dm0/Matrix/recordings/74sqrt/2025-07-07_13-50-54/2025-07-07_13-50-54_0.mcap",
+            bag_path="/media/dm0/Matrix1/bags/2025-05-XX_California1/2025-05-15/2025-05-15-16-32-31/2025-05-15-16-32-31.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -154,10 +166,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="7/7 run1 sqrtstd"
+            nickname="5/15 run3"
         ),
-            BagConfig(
-            bag_path="/media/dm0/Matrix/recordings/nozupdate/2025-07-07_15-21-50/2025-07-07_15-21-50_0.mcap",
+        BagConfig(
+            bag_path="/media/dm0/Matrix1/recordings/515new/2025-07-15_16-14-02/2025-07-15_16-14-02_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -165,11 +177,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="7/7 run1 sqrtstd no z"
-        ),
+            nickname="5/15 run3 smallbb | 2b | 50 "
+        )
     ]
 
-        
     
     # Load data from both bags
     loader = DataLoader(bag_configs=bag_configs, output_dir=csv_dir)
@@ -178,7 +189,7 @@ def main():
 
     # Get nicknames from bag configs
     nicknames = [config.nickname for config in bag_configs]
-    duration = 5000  
+    duration = 2000  
     
     # Process data for each bag
     run_data = {}
@@ -230,9 +241,8 @@ def main():
             run_data[nickname]["gps_b"] = select_time_range(db[topics["gps_b"]], start_time, end_time)
         if "gps_innovation" in topics:
             print(f"Loading GPS innovation for {nickname} from topic {topics['gps_innovation']}")
-            print("before select_time_range:", db[topics["gps_innovation"]].head())
             run_data[nickname]["gps_innovation"] = select_time_range(db[topics["gps_innovation"]], start_time, end_time)
-            print("after select_time_range:", run_data[nickname]["gps_innovation"].head())
+        
         # Convert GPS to ENU and load covariance
         for gps_key in ["gps_a", "gps_b"]:
             if gps_key in run_data[nickname]:
@@ -249,22 +259,19 @@ def main():
                 # print(f"{nickname} {gps_key} covariance shape: {cov_matrices.shape}")
                 if nickname == "stable":
                     print(f"Added bubble covariance for {nickname} {gps_key}")
-                if nickname == "optv1_bubble":
-                    print(f"Added bubble covariance for {nickname} {gps_key}")
-                if nickname == "stable_newcommits":
-                    print(f"Added bubble covariance for  {nickname} {gps_key}")
 
-    # Create plots with trajectory on left, GPS A, B and innovation traces on right
-    fig = plt.figure(figsize=(16, 12))
-    gs = fig.add_gridspec(3, 2, width_ratios=[1, 1], height_ratios=[1, 1, 1])
+    # Create plots with trajectory on left, GPS A, B, innovation, and velocity traces on right
+    fig = plt.figure(figsize=(16, 16))
+    gs = fig.add_gridspec(4, 2, width_ratios=[1, 1], height_ratios=[1, 1, 1, 1])
     
     # Left: Trajectory plot (spans all rows)
     ax_traj = fig.add_subplot(gs[:, 0])
     
-    # Right: Separate trace plots for GPS A, B, and innovation
+    # Right: Separate trace plots for GPS A, B, innovation, and velocity
     ax_trace_a = fig.add_subplot(gs[0, 1])
     ax_trace_b = fig.add_subplot(gs[1, 1])
     ax_innovation = fig.add_subplot(gs[2, 1])
+    ax_velocity = fig.add_subplot(gs[3, 1])
     
     # Plot trajectory comparison
     colors = ['red', 'blue', 'green', 'orange', 'purple']
@@ -285,7 +292,7 @@ def main():
                 for cov_str in odom["pose_covariance"]:
                     cov_6x6 = np.array(eval(cov_str))  # Convert string to 6x6 array
                     cov_3x3 = cov_6x6[:3, :3]  # Extract position covariance
-                    cov_traces.append(np.trace(cov_3x3))
+                    cov_traces.append(cov_3x3[0, 0] + cov_3x3[1, 1])  # Only x and y components
                 
                 # Scale point sizes by covariance trace
                 sizes = np.array(cov_traces) * args.scale_factor
@@ -310,7 +317,7 @@ def main():
                 for cov_str in odom_raw["pose_covariance"]:
                     cov_6x6 = np.array(eval(cov_str))  # Convert string to 6x6 array
                     cov_3x3 = cov_6x6[:3, :3]  # Extract position covariance
-                    cov_traces.append(np.trace(cov_3x3))
+                    cov_traces.append(cov_3x3[0, 0] + cov_3x3[1, 1])  # Only x and y components
                 
                 # Scale point sizes by covariance trace
                 sizes = np.array(cov_traces) * args.scale_factor
@@ -331,6 +338,18 @@ def main():
         if "gps_b_enu" in run_data[nickname]:
             x, y, z = run_data[nickname]["gps_b_enu"]
             ax_traj.scatter(x, y, c=color, s=5, label=f"GPS B {nickname}", alpha=0.5, marker='^')
+    
+    # Add bubble visualization as circles
+    bubble = Bubble()
+    for center, radius, max_cov in bubble.bubbles:
+        circle = plt.Circle(center, radius, fill=False, edgecolor='gray', 
+                           linewidth=2, alpha=0.7, linestyle='--')
+        ax_traj.add_patch(circle)
+        # Add center point
+        ax_traj.plot(center[0], center[1], 'ko', markersize=4, alpha=0.7)
+        # Add label with max covariance
+        ax_traj.annotate(f'{max_cov}', xy=center, xytext=(5, 5), 
+                        textcoords='offset points', fontsize=8, alpha=0.7)
     
     ax_traj.axis("equal")
     ax_traj.set_xlabel("X (m)")
@@ -353,8 +372,8 @@ def main():
             cov_matrices = run_data[nickname]["gps_a_cov"]
             time_vals = run_data[nickname]["gps_a"]["header_t"].values
             
-            # Calculate trace for each covariance matrix
-            trace_vals = np.array([np.trace(cov) for cov in cov_matrices])
+            # Calculate trace for each covariance matrix (only x and y components)
+            trace_vals = np.array([cov[0, 0] + cov[1, 1] for cov in cov_matrices])
             
             ax_trace_a.scatter(time_vals, trace_vals, 
                              label=f"GPS A {nickname}", 
@@ -387,6 +406,7 @@ def main():
     ax_trace_a.set_title("GPS A Covariance Trace Over Time")
     ax_trace_a.legend()
     ax_trace_a.grid(True, alpha=0.3)
+    ax_trace_a.set_ylim(0, 50)
     #ax_trace_a.set_yscale('log')
     
     # Plot GPS B covariance trace
@@ -400,8 +420,8 @@ def main():
             cov_matrices = run_data[nickname]["gps_b_cov"]
             time_vals = run_data[nickname]["gps_b"]["header_t"].values
             
-            # Calculate trace for each covariance matrix
-            trace_vals = np.array([np.trace(cov) for cov in cov_matrices])
+            # Calculate trace for each covariance matrix (only x and y components)
+            trace_vals = np.array([cov[0, 0] + cov[1, 1] for cov in cov_matrices])
             
             ax_trace_b.scatter(time_vals, trace_vals, 
                              label=f"GPS B {nickname}", 
@@ -412,6 +432,7 @@ def main():
     ax_trace_b.set_title("GPS B Covariance Trace Over Time")
     ax_trace_b.legend()
     ax_trace_b.grid(True, alpha=0.3)
+    ax_trace_b.set_ylim(0, 50)
     #ax_trace_b.set_yscale('log')
     
     # Plot GPS innovation
@@ -436,14 +457,48 @@ def main():
     ax_innovation.legend()
     ax_innovation.grid(True, alpha=0.3)
     
+    # Plot odometry x velocity
+    for i, nickname in enumerate(nicknames):
+        if nickname not in run_data:
+            continue
+            
+        color = colors[i % len(colors)]
+        
+        # Plot odom x velocity
+        if "odom" in run_data[nickname]:
+            odom = run_data[nickname]["odom"]
+            if "vx" in odom.columns:
+                ax_velocity.plot(odom["header_t"].values, odom["vx"].values,
+                               label=f"Odom {nickname}", 
+                               color=color, alpha=0.7, linewidth=1.5)
+        
+        # Plot raw odom x velocity
+        if "odom_raw" in run_data[nickname]:
+            odom_raw = run_data[nickname]["odom_raw"]
+            if "vx" in odom_raw.columns:
+                ax_velocity.plot(odom_raw["header_t"].values, odom_raw["vx"].values,
+                               label=f"Odom Raw {nickname}", 
+                               color=color, alpha=0.5, linewidth=1, linestyle='--')
+    
+    ax_velocity.set_xlabel("Time (s)")
+    ax_velocity.set_ylabel("X Velocity (m/s)")
+    ax_velocity.set_title("Odometry X Velocity Over Time")
+    ax_velocity.legend()
+    ax_velocity.grid(True, alpha=0.3)
+    
     # Share x-axis between all time plots
     ax_trace_b.sharex(ax_trace_a)
     ax_innovation.sharex(ax_trace_a)
+    ax_velocity.sharex(ax_trace_a)
     
     # Function to update trajectory plot based on time range
     def update_trajectory_view(time_min, time_max):
         # Clear trajectory plot
         ax_traj.clear()
+        
+        # Collect all trajectory points to calculate bounds
+        all_x_points = []
+        all_y_points = []
         
         # Re-plot trajectory with time filtering
         for i, nickname in enumerate(nicknames):
@@ -461,6 +516,11 @@ def main():
                 # Find indices within time range
                 mask = (time_data >= time_min) & (time_data <= time_max)
                 
+                # Collect points for bounds calculation
+                if np.any(mask):
+                    all_x_points.extend(x_data[mask])
+                    all_y_points.extend(y_data[mask])
+                
                 # Plot filtered trajectory
                 if args.scale_by_covariance and "odom" in run_data[nickname] and "pose_covariance" in run_data[nickname]["odom"].columns:
                     # Get covariance data for time-filtered points
@@ -473,7 +533,7 @@ def main():
                     for cov_str in odom_df[time_mask]["pose_covariance"]:
                         cov_6x6 = np.array(eval(cov_str))
                         cov_3x3 = cov_6x6[:3, :3]
-                        cov_traces.append(np.trace(cov_3x3))
+                        cov_traces.append(cov_3x3[0, 0] + cov_3x3[1, 1])  # Only x and y components
                     
                     # Scale point sizes by covariance trace
                     sizes = np.array(cov_traces) * args.scale_factor
@@ -497,6 +557,11 @@ def main():
                 # Find indices within time range
                 mask = (time_data >= time_min) & (time_data <= time_max)
                 
+                # Collect points for bounds calculation
+                if np.any(mask):
+                    all_x_points.extend(x_data[mask])
+                    all_y_points.extend(y_data[mask])
+                
                 # Plot filtered raw trajectory
                 if args.scale_by_covariance and "odom_raw" in run_data[nickname] and "pose_covariance" in run_data[nickname]["odom_raw"].columns:
                     # Get covariance data for time-filtered points
@@ -509,7 +574,7 @@ def main():
                     for cov_str in odom_raw_df[time_mask]["pose_covariance"]:
                         cov_6x6 = np.array(eval(cov_str))
                         cov_3x3 = cov_6x6[:3, :3]
-                        cov_traces.append(np.trace(cov_3x3))
+                        cov_traces.append(cov_3x3[0, 0] + cov_3x3[1, 1])  # Only x and y components
                     
                     # Scale point sizes by covariance trace
                     sizes = np.array(cov_traces) * args.scale_factor
@@ -529,6 +594,9 @@ def main():
                 gps_time = run_data[nickname]["gps_a"]["header_t"].values
                 x, y, _ = run_data[nickname]["gps_a_enu"]
                 gps_mask = (gps_time >= time_min) & (gps_time <= time_max)
+                if np.any(gps_mask):
+                    all_x_points.extend(x[gps_mask])
+                    all_y_points.extend(y[gps_mask])
                 ax_traj.scatter(x[gps_mask], y[gps_mask], c=color, s=1, 
                                label=f"GPS A {nickname}", alpha=0.5)
                 
@@ -536,8 +604,52 @@ def main():
                 gps_time = run_data[nickname]["gps_b"]["header_t"].values
                 x, y, _ = run_data[nickname]["gps_b_enu"]
                 gps_mask = (gps_time >= time_min) & (gps_time <= time_max)
+                if np.any(gps_mask):
+                    all_x_points.extend(x[gps_mask])
+                    all_y_points.extend(y[gps_mask])
                 ax_traj.scatter(x[gps_mask], y[gps_mask], c=color, s=1, 
                                label=f"GPS B {nickname}", alpha=0.3, marker='^')
+        
+        # Set axis limits to focus on the trajectory data
+        if all_x_points and all_y_points:
+            x_min, x_max = min(all_x_points), max(all_x_points)
+            y_min, y_max = min(all_y_points), max(all_y_points)
+            
+            # Add some padding (10% of range)
+            x_padding = (x_max - x_min) * 0.1
+            y_padding = (y_max - y_min) * 0.1
+            
+            # Ensure minimum padding for very small ranges
+            if x_padding < 5:
+                x_padding = 5
+            if y_padding < 5:
+                y_padding = 5
+                
+            ax_traj.set_xlim(x_min - x_padding, x_max + x_padding)
+            ax_traj.set_ylim(y_min - y_padding, y_max + y_padding)
+            
+            # Add bubble visualization only for bubbles within the view bounds
+            bubble = Bubble()
+            view_x_min = x_min - x_padding
+            view_x_max = x_max + x_padding
+            view_y_min = y_min - y_padding
+            view_y_max = y_max + y_padding
+            
+            for center, radius, max_cov in bubble.bubbles:
+                # Check if bubble intersects with the view bounds
+                if (center[0] - radius <= view_x_max and 
+                    center[0] + radius >= view_x_min and
+                    center[1] - radius <= view_y_max and 
+                    center[1] + radius >= view_y_min):
+                    
+                    circle = plt.Circle(center, radius, fill=False, edgecolor='gray', 
+                                       linewidth=2, alpha=0.7, linestyle='--')
+                    ax_traj.add_patch(circle)
+                    # Add center point
+                    ax_traj.plot(center[0], center[1], 'ko', markersize=4, alpha=0.7)
+                    # Add label with max covariance
+                    ax_traj.annotate(f'{max_cov}', xy=center, xytext=(5, 5), 
+                                    textcoords='offset points', fontsize=8, alpha=0.7)
         
         ax_traj.axis("equal")
         ax_traj.set_xlabel("X (m)")
@@ -552,8 +664,11 @@ def main():
         time_min, time_max = ax.get_xlim()
         update_trajectory_view(time_min, time_max)
     
-    # Connect the callback to x-axis limit changes
+    # Connect the callback to x-axis limit changes for all time axes
     ax_trace_a.callbacks.connect('xlim_changed', on_xlim_changed)
+    ax_trace_b.callbacks.connect('xlim_changed', on_xlim_changed)
+    ax_innovation.callbacks.connect('xlim_changed', on_xlim_changed)
+    ax_velocity.callbacks.connect('xlim_changed', on_xlim_changed)
     
     plt.tight_layout()
     plt.show()

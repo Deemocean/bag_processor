@@ -33,9 +33,10 @@ def main():
     origin = [36.583880, -121.752955, 250.00]  # lat, lon, alt
     
     # Configure two bags with odometry data
+
     bag_configs = [
         BagConfig(
-            bag_path="/media/dm0/Matrix/bags/ca2/2025-07-07/2025-07-07-11-30-00/2025-07-07-11-30-00.mcap",
+            bag_path="/media/dm0/Matrix1/bags/ca2/2025-07-07/2025-07-07-16-29-11/2025-07-07-16-29-11.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -43,11 +44,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="7/7 run1"
+            nickname="7/7 run3"
         ),
-
         BagConfig(
-            bag_path="/media/dm0/Matrix/recordings/74sqrt/2025-07-07_13-50-54/2025-07-07_13-50-54_0.mcap",
+            bag_path="/media/dm0/Matrix1/recordings/chi1/2025-07-14_17-21-09/2025-07-14_17-21-09_0.mcap",
             topics={
                 "/state/odom_raw": "odom_raw",
                 "/state/odom": "odom",
@@ -55,20 +55,10 @@ def main():
                 "/sensors/manager/gps1": "gps_b",
                 "/localization/debug/gps_dist": "gps_innovation"
             },
-            nickname="7/7 run1 sqrtstd"
-        ),
-            BagConfig(
-            bag_path="/media/dm0/Matrix/recordings/nozupdate/2025-07-07_15-21-50/2025-07-07_15-21-50_0.mcap",
-            topics={
-                "/state/odom_raw": "odom_raw",
-                "/state/odom": "odom",
-                "/sensors/manager/gps0": "gps_a",
-                "/sensors/manager/gps1": "gps_b",
-                "/localization/debug/gps_dist": "gps_innovation"
-            },
-            nickname="7/7 run1 sqrtstd no z"
-        ),
-    ]
+            nickname="7/7 run3 adaptive chi2(1) | 0.5 gps cov"
+        )
+
+     ]
     
     
     # Load data

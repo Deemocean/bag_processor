@@ -82,9 +82,48 @@ class DataLoader:
         if bag_nickname:
             return f"{topic_nickname}_{bag_nickname}"
         return topic_nickname
+    
+    def _filter_unprocessed_configs(self) -> List[BagConfig]:
+        """Filter out bag configs that have already been processed."""
+        # Load existing manifest if it exists
+        existing_topics = set()
+        if os.path.exists(self.manifest_f):
+            try:
+                with open(self.manifest_f) as f:
+                    existing_manifest = json.load(f)
+                    existing_topics = set(existing_manifest.keys())
+            except:
+                # If manifest is corrupted, process everything
+                return self.bag_configs
+        
+        # Filter configs
+        configs_to_process = []
+        for config in self.bag_configs:
+            # Check if any topic from this config is missing from manifest
+            config_topics = set()
+            for topic_name, nickname in config.topics.items():
+                final_nickname = self._get_final_nickname(nickname, config.nickname)
+                config_topics.add(final_nickname)
+            
+            # If any topic from this config is missing, we need to process this config
+            if not config_topics.issubset(existing_topics):
+                configs_to_process.append(config)
+                missing = config_topics - existing_topics
+                print(f"Need to process config for '{config.nickname or 'unnamed'}': missing topics {missing}")
+            else:
+                print(f"Config for '{config.nickname or 'unnamed'}' already processed, skipping")
+        
+        return configs_to_process
 
     def _generate_manifest(self):
-        BagLoader(self.bag_configs, self.output_dir).run_all()
+        # Check existing manifest to determine which configs need processing
+        configs_to_process = self._filter_unprocessed_configs()
+        
+        if configs_to_process:
+            print(f"Processing {len(configs_to_process)} out of {len(self.bag_configs)} bag configs...")
+            BagLoader(configs_to_process, self.output_dir).run_all()
+        else:
+            print("All bag configs already processed, skipping generation...")
 
     def _load_manifest(self) -> Dict[str, str]:
         with open(self.manifest_f) as f:
@@ -117,7 +156,8 @@ class DataLoader:
                 print("\nMissing CSV files for topics:")
                 for t in missing_files:
                     print(f"  • {t} → {manifest.get(t)}")
-            print("Regenerating manifest and CSVs…")
+            print("Regenerating manifest and CSVs for missing data...")
+            # Only process configs that have missing data
             self._generate_manifest()
             manifest = self._load_manifest()
 
